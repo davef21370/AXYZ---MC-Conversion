@@ -1,14 +1,25 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import sys
+import sys, os
 
+
+os.system("cls")
 
 fName = "input.nc"
 oName = "output.nc"
 diameter = 63.5
 stripStart = 8
 stripEnd = 5
+headerName = "header.txt"
+footerName = "footer.txt"
+acuStr = "%.2f"
+
+def quitOnError(es, en):
+    print es
+    if en:
+        print "I/O error({0}): {1}".format(en.errno, en.strerror)
+    sys.exit(0)
 
 sac = 1
 while True:
@@ -28,17 +39,44 @@ while True:
         if sys.argv[sac] == "-e":
             stripEnd = int(sys.argv[sac + 1])
             sac += 2
+        if sys.argv[sac] == "-h":
+            headerName = sys.argv[sac + 1]
+            sac += 2
+        if sys.argv[sac] == "-f":
+            footerName = sys.argv[sac + 1]
+            sac += 2
+        if sys.argv[sac] == "-a":
+            acuStr = "%." + sys.argv[sac + 1] + "f"
     except:
         break
         
 
 pi = 3.1415926
 
-inFile = open(fName, "r")
+try:
+    f = open(headerName, "r")
+    header = f.read()
+    f.close
+except IOError as e:
+    quitOnError("Error. Can't open header file : " + headerName, e)
+
+try:
+    f = open(footerName, "r")
+    footer = f.read()
+    f.close
+except IOError as e:
+    quitOnError("Error. Can't open footer file : " + footerName, e)
+
+try:    
+    inFile = open(fName, "r")
+except IOError as e:
+    quitOnError("Error. Can't open input file : " + fName, e)
 
 for i in range(0, stripStart):
     scrap = inFile.readline()
-    
+    if scrap == "":
+        quitOnError("Error stripping " + str(stripStart) + " lines from input file.", 0)
+
 strList = []
 while True:
     inStr = inFile.readline()
@@ -53,13 +91,27 @@ while True:
     strList.append(ns)
 inFile.close()
 
-for i in range(0, stripEnd):
-    strList.pop()
+try:
+    for i in range(0, stripEnd):
+        strList.pop()
+except:
+    quitOnError("Error stripping " + str(stripEnd) + " lines from input file.", 0)
 
-outFile = open(oName, "w")
+linesRead = len(strList)
+print str(linesRead) + " lines read.\n"
 
-outFile.write(":9\nT9M6\nG0X0Y0Z100S6000M3H32\nG1F300\nG0\nM11\n")
+try:
+    outFile = open(oName, "w")
+except IOError as e:
+    quitOnError("Error creating or opening output file.", e)
 
+try:
+    outFile.write(header)
+except IOError as e:
+    quitOnError("Error. Can't write to output file.", e)
+    
+print "Processing...."
+outCount = 0
 for s in strList:
     sg = sx = sy = sz = ""
     ss = "1234567890-."
@@ -78,7 +130,7 @@ for s in strList:
             sx += s[p]
             p += 1
         na = float(sx)
-        sx = "X" + "%.2f" % na
+        sx = "X" + acuStr % na
     p = s.find("Y")
     if p > -1:
         p += 1
@@ -87,7 +139,7 @@ for s in strList:
             p += 1
         na = float(sy)
         na = ((360 / (pi * diameter)) * na) + 180
-        sy = "A" + "%.2f" % na
+        sy = "A" + acuStr % na
     p = s.find("Z")
     if p > -1:
         p += 1
@@ -98,8 +150,19 @@ for s in strList:
         sz = "Z" + "%.1f" % na
     
     outStr = sg + sx + sy + sz + "\n"
-    outFile.write(outStr)
+    try:
+        outFile.write(outStr)
+        outCount += 1
+    except IOError as e:
+        quitOnError("Error. Can't write to output file.", e)
 
-outFile.write("Z200\nY250\nM02")
+print "\n" + str(outCount + header.count("\n") + footer.count("\n")) + " lines written to " + oName
+print "\nComplete.\n"
+
+try:
+    outFile.write(footer)
+except IOError as e:
+    quitOnError("Error. Can't write to output file.", e)
+
 outFile.close()
 

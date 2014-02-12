@@ -1,10 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import sys, os
+import sys, os, urllib2
 
 
 os.system("cls")
+
+print "Radial Engraving Conversion Engine."
+print "Copyright 2014 Dave Finch.\n\n"
 
 fName = "input.nc"
 oName = "output.nc"
@@ -19,7 +22,21 @@ def quitOnError(es, en):
     print es
     if en:
         print "I/O error({0}): {1}".format(en.errno, en.strerror)
-    sys.exit(0)
+    os._exit(0)
+
+def authenticateUse():
+    try:
+        page = urllib2.urlopen("http://www.domain.com")
+        content = page.read()
+        if "dominicanhall" in content:
+            return
+        else:
+            quitOnError("Failed to authenticate program.", 0)
+    except urllib2.HTTPError as e:
+        quitOnError("Failed to authenticate program.", e)
+
+print "Authenticating program...."
+#authenticateUse()
 
 sac = 1
 while True:
@@ -46,7 +63,10 @@ while True:
             footerName = sys.argv[sac + 1]
             sac += 2
         if sys.argv[sac] == "-a":
+            if int(sys.argv[sac +1]) < 0:
+                quitOnError("Error. Accuracy argument '-a' must be a positive integer.", 0)
             acuStr = "%." + sys.argv[sac + 1] + "f"
+            sac += 2
     except:
         break
         
